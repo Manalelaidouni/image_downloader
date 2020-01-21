@@ -4,13 +4,13 @@
 # email mm.elaidouni@gmail.com
 # ------------------------------------------------------------------------------
 
-
 import argparse
 import csv
 import os
 import json
-import time
-import winreg
+import time 
+if os.name == 'nt':
+    import winreg
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from io import BytesIO
@@ -47,6 +47,7 @@ def default_path_downloads() -> Path:
     """
 
     if platform == 'win32' or platform == 'win64' :
+        import winreg
         # open the windows registry key for the current user
         with winreg.OpenKey(winreg.HKEY_CURRENT_USER, r'SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders') as key:
             # get the registry value for the 'Downloads' directory path based on its GUID.
@@ -180,7 +181,7 @@ def download_image_from_url(image_tuple: Tuple[str, str], query: str, idx: int, 
     """ Requests the image url from 'image_tuple' and saves the returned image into a folder, either in a given/Downloads directory.
     
     Args:
-        image_list: An image url and its corresponding extension.
+        image_tuple: An image url and its corresponding extension.
         query: A query string. 
         idx: A number keeping count of the image to download,it's used in the image filename.
         output_dir: Main directory where the folder containing the images is saved. 
@@ -231,7 +232,7 @@ def download_image_from_url(image_tuple: Tuple[str, str], query: str, idx: int, 
         
 
 
-def download_images_single_query_async(query: str, output_dir: Union[Path, str], folder_name: str, just_csv_no_download: bool, urls_to_csv: bool) -> None: 
+def download_images_single_query_async(query: str, output_dir: Union[Path, str], folder_name: str, just_csv_no_download: bool, urls_to_csv: bool, num_images: int) -> None: 
     """  fetch image urls from google search and download them in a folder in the main directory.
 
     Args:
@@ -240,6 +241,8 @@ def download_images_single_query_async(query: str, output_dir: Union[Path, str],
         folder_name: Name of folder conataining the images.
         just_csv_no_download: Downloads the image urls with their extensions in a csv format without downloading the images.
         urls_to_csv: Saves the image urls with their extensions in a csv format.
+        num_images: Number of images to download
+
     """
 
     # for multi-word queries 
@@ -252,15 +255,18 @@ def download_images_single_query_async(query: str, output_dir: Union[Path, str],
 
     csv_filename = default_query_name(query)
     
-    # If the user wants to download the images
+    # If user wants to download images
     if not just_csv_no_download:
-
         with ThreadPoolExecutor(max_workers=5) as executor:
-            future = (executor.submit(download_image_from_url, image, query, idx, output_dir, folder_name) for idx, image in enumerate(images))
+            if num_images:
+                future = (executor.submit(download_image_from_url, image, query, idx, output_dir, folder_name) for idx, image in enumerate(images[:num_images]))
+            else:
+                future = (executor.submit(download_image_from_url, image, query, idx, output_dir, folder_name) for idx, image in enumerate(images))
+            
             for f_instance in as_completed(future):
                 f_instance
 
-    # Save the 'images' list to a csv file when the flag is called
+    # Save 'images' list to a csv file when the flag is called
     if urls_to_csv or just_csv_no_download: 
         save_urls_csv(images, output_dir, csv_filename)
 
@@ -277,7 +283,7 @@ def download_list_queries(list_queries: List, output_dir: Union[Path, str], fold
     """
     
     with ThreadPoolExecutor(max_workers=5) as executor:
-        future = (executor.submit(download_images_single_query_async, query, output_dir, folder_name, just_csv_no_download, urls_to_csv) for query in list_queries)
+        future = (executor.submit(download_images_single_query_async, query, output_dir, folder_name, just_csv_no_download, urls_to_csv, num_images) for query in list_queries)
         for f_instance in as_completed(future):
             f_instance   
 
@@ -297,7 +303,7 @@ if __name__ == '__main__':
     list_queries = inputs['list_queries']
 
     if query:
-        download_images_single_query_async(query, output_dir, folder_name, just_csv_no_download, urls_to_csv)
+        download_images_single_query_async(query, output_dir, folder_name, just_csv_no_download, urls_to_csv, num_images)
 
     # list of queries CLI input example: -l dog -l cat -l horse
     if list_queries:
