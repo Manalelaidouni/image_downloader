@@ -23,6 +23,7 @@ from PIL import Image
 import requests
 from requests.exceptions import Timeout, HTTPError, ConnectionError
 
+
 # =================
 # Utility functions
 # =================
@@ -259,7 +260,7 @@ def download_images_single_query_async(query: str, output_dir: Union[Path, str],
     if not just_csv_no_download:
         with ThreadPoolExecutor(max_workers=5) as executor:
             if num_images:
-                future = (executor.submit(download_image_from_url, image, query, idx, output_dir, folder_name) for idx, image in enumerate(images[:num_images]))
+                future =  (executor.submit(download_image_from_url, image, query, idx, output_dir, folder_name) for idx, image in enumerate(images[:num_images]))
             else:
                 future = (executor.submit(download_image_from_url, image, query, idx, output_dir, folder_name) for idx, image in enumerate(images))
             
@@ -269,6 +270,8 @@ def download_images_single_query_async(query: str, output_dir: Union[Path, str],
     # Save 'images' list to a csv file when the flag is called
     if urls_to_csv or just_csv_no_download: 
         save_urls_csv(images, output_dir, csv_filename)
+
+
 
 
 def download_list_queries(list_queries: List, output_dir: Union[Path, str], folder_name: str, just_csv_no_download: bool, urls_to_csv: bool) -> None:
